@@ -1,0 +1,48 @@
+{
+  "id": "peringatan-kuning",
+  "name": "Peringatan Kuning",
+  "category": "lucu",
+  "layouts": [
+    "4x1"
+  ],
+  "canvas": {
+    "4x1": [
+      600,
+      1800
+    ]
+  },
+  "slots": {
+    "4x1": [
+      {
+        "x": 40,
+        "y": 180,
+        "w": 520,
+        "h": 347,
+        "shape": "rect"
+      },
+      {
+        "x": 40,
+        "y": 543,
+        "w": 520,
+        "h": 347,
+        "shape": "rect"
+      },
+      {
+        "x": 40,
+        "y": 906,
+        "w": 520,
+        "h": 347,
+        "shape": "rect"
+      },
+      {
+        "x": 40,
+        "y": 1269,
+        "w": 520,
+        "h": 347,
+        "shape": "rect"
+      }
+    ]
+  },
+  "bg": "#111111",
+  "footerText": "AWAS KEBAHAGIAAN • VIRTUALAN"
+}

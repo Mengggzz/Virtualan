@@ -1,0 +1,50 @@
+[
+  {
+    "id": "asli",
+    "name": "Asli",
+    "cssFilter": "none",
+    "note": ""
+  },
+  {
+    "id": "hitam-putih",
+    "name": "Hitam Putih",
+    "cssFilter": "grayscale(1)",
+    "note": ""
+  },
+  {
+    "id": "sepia",
+    "name": "Sepia",
+    "cssFilter": "sepia(0.65)",
+    "note": ""
+  },
+  {
+    "id": "vintage",
+    "name": "Vintage",
+    "cssFilter": "sepia(0.4) contrast(0.92) brightness(1.06) saturate(0.85)",
+    "note": ""
+  },
+  {
+    "id": "hangat",
+    "name": "Hangat",
+    "cssFilter": "sepia(0.25) saturate(1.15) brightness(1.03) hue-rotate(-8deg)",
+    "note": ""
+  },
+  {
+    "id": "sejuk",
+    "name": "Sejuk",
+    "cssFilter": "saturate(0.92) brightness(1.04) hue-rotate(12deg)",
+    "note": ""
+  },
+  {
+    "id": "pudar",
+    "name": "Pudar",
+    "cssFilter": "contrast(0.88) brightness(1.12) saturate(0.75)",
+    "note": ""
+  },
+  {
+    "id": "vhs",
+    "name": "VHS",
+    "cssFilter": "saturate(1.3) contrast(1.05)",
+    "note": "efek garis scan & geser warna RGB ditambah di kode render, bukan di preset ini"
+  }
+]

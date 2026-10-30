@@ -1,0 +1,47 @@
+{
+  "layouts": {
+    "4x1": {
+      "canvas": [600, 1800],
+      "margin": { "left": 40, "right": 40 },
+      "headerZone": { "y": 0, "height": 180 },
+      "footerZone": { "y": 1616, "height": 184 },
+      "slots": [
+        { "x": 40, "y": 180, "w": 520, "h": 347, "shape": "rect" },
+        { "x": 40, "y": 543, "w": 520, "h": 347, "shape": "rect" },
+        { "x": 40, "y": 906, "w": 520, "h": 347, "shape": "rect" },
+        { "x": 40, "y": 1269, "w": 520, "h": 347, "shape": "rect" }
+      ],
+      "pitch": 363,
+      "slotGap": 16,
+      "subSlotDuo": {
+        "personA": { "xOffset": 0, "w": 256, "h": 347 },
+        "personB": { "xOffset": 264, "w": 256, "h": 347 },
+        "gap": 8
+      }
+    },
+    "2x2": {
+      "canvas": [1800, 1200],
+      "margin": { "left": 60, "right": 60, "top": 48, "bottom": 24 },
+      "slots": [
+        { "x": 60, "y": 48, "w": 828, "h": 552, "shape": "rect" },
+        { "x": 912, "y": 48, "w": 828, "h": 552, "shape": "rect" },
+        { "x": 60, "y": 624, "w": 828, "h": 552, "shape": "rect" },
+        { "x": 912, "y": 624, "w": 828, "h": 552, "shape": "rect" }
+      ],
+      "slotGap": 24,
+      "subSlotDuo": {
+        "personA": { "xOffset": 0, "w": 408, "h": 552 },
+        "personB": { "xOffset": 420, "w": 408, "h": 552 },
+        "gap": 12
+      }
+    },
+    "koran": {
+      "canvas": [1200, 1600],
+      "margin": { "left": 70, "right": 70 },
+      "slots": [
+        { "x": 70, "y": 430, "w": 640, "h": 427, "shape": "rect" },
+        { "x": 750, "y": 430, "w": 380, "h": 253, "shape": "rect" }
+      ]
+    }
+  }
+}

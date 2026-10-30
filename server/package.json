@@ -1,0 +1,12 @@
+{
+  "name": "virtualan-server",
+  "version": "1.0.0",
+  "description": "Signaling & Room Coordination Server for Virtualan",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

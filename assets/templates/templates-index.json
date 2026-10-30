@@ -1,0 +1,16 @@
+[
+  { "id": "film-hitam", "name": "Film Hitam", "category": "klasik", "layouts": ["4x1", "2x2"] },
+  { "id": "film-putih", "name": "Film Putih", "category": "klasik", "layouts": ["4x1", "2x2"] },
+  { "id": "polos-krem", "name": "Polos Krem", "category": "klasik", "layouts": ["4x1", "2x2"] },
+  { "id": "koran-harian", "name": "Koran Harian", "category": "koran", "layouts": ["4x1", "2x2"] },
+  { "id": "senja", "name": "Senja", "category": "warna", "layouts": ["4x1", "2x2"] },
+  { "id": "pita-biru", "name": "Pita Biru", "category": "warna", "layouts": ["4x1"] },
+  { "id": "marun-script", "name": "Marun Script", "category": "elegan", "layouts": ["4x1"] },
+  { "id": "hati", "name": "Hati", "category": "cinta", "layouts": ["4x1", "2x2"] },
+  { "id": "peringatan-kuning", "name": "Peringatan Kuning", "category": "lucu", "layouts": ["4x1"] },
+  { "id": "polkadot", "name": "Polkadot Safari", "category": "pola", "layouts": ["4x1"] },
+  { "id": "musiman-tahun-baru", "name": "Musiman: Tahun Baru", "category": "musiman", "layouts": ["4x1"], "seasonal": true },
+  { "id": "snoopy", "name": "Snoopy", "category": "karakter", "layouts": ["4x1"] },
+  { "id": "miffy", "name": "Miffy", "category": "karakter", "layouts": ["4x1"] },
+  { "id": "koran-musik", "name": "Koran Musik: About You", "category": "koran", "layouts": ["koran"] }
+]

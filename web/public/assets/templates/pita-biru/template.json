@@ -1,0 +1,48 @@
+{
+  "id": "pita-biru",
+  "name": "Pita Biru",
+  "category": "warna",
+  "layouts": [
+    "4x1"
+  ],
+  "canvas": {
+    "4x1": [
+      600,
+      1800
+    ]
+  },
+  "slots": {
+    "4x1": [
+      {
+        "x": 40,
+        "y": 180,
+        "w": 520,
+        "h": 347,
+        "shape": "rect"
+      },
+      {
+        "x": 40,
+        "y": 543,
+        "w": 520,
+        "h": 347,
+        "shape": "rect"
+      },
+      {
+        "x": 40,
+        "y": 906,
+        "w": 520,
+        "h": 347,
+        "shape": "rect"
+      },
+      {
+        "x": 40,
+        "y": 1269,
+        "w": 520,
+        "h": 347,
+        "shape": "rect"
+      }
+    ]
+  },
+  "bg": "#2456A6",
+  "footerText": "MOMEN KITA"
+}
