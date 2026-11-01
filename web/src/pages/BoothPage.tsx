@@ -16,6 +16,11 @@ interface BoothPageProps {
   onExitBooth: () => void;
   onStartDuoSession?: () => void;
   sessionEndsAt?: number | null;
+  onLocalStreamReady?: (stream: MediaStream) => void;
+  syncTrigger?: { slot: number; at: number } | null;
+  onSendCapturedDuoFrame?: (slot: number, blob: Blob) => void;
+  peerCapturedFrame?: { slot: number; blob: Blob } | null;
+  onStartDuoNextSlot?: (slot: number) => void;
 }
 
 export const BoothPage: React.FC<BoothPageProps> = ({
@@ -30,6 +35,11 @@ export const BoothPage: React.FC<BoothPageProps> = ({
   onExitBooth,
   onStartDuoSession,
   sessionEndsAt,
+  onLocalStreamReady,
+  syncTrigger,
+  onSendCapturedDuoFrame,
+  peerCapturedFrame,
+  onStartDuoNextSlot,
 }) => {
   const { t } = useT();
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -47,6 +57,11 @@ export const BoothPage: React.FC<BoothPageProps> = ({
   const [capturedBlobs, setCapturedBlobs] = useState<Blob[]>([]);
   const [isPosingPause, setIsPosingPause] = useState(false);
   const [flash, setFlash] = useState(false);
+
+  // Duo session state
+  const [localDuoBlobs, setLocalDuoBlobs] = useState<Record<number, Blob>>({});
+  const [peerDuoBlobs, setPeerDuoBlobs] = useState<Record<number, Blob>>({});
+  const [completedDuoSlots, setCompletedDuoSlots] = useState<Record<number, { personA: Blob; personB: Blob }>>({});
 
   // Timer 5:00
   const [secondsRemaining, setSecondsRemaining] = useState<number>(300);
@@ -75,6 +90,7 @@ export const BoothPage: React.FC<BoothPageProps> = ({
         audio: true,
       });
       setLocalStream(stream);
+      onLocalStreamReady?.(stream);
       if (localVideoRef.current) {
         localVideoRef.current.srcObject = stream;
       }
@@ -96,6 +112,78 @@ export const BoothPage: React.FC<BoothPageProps> = ({
       remoteVideoRef.current.srcObject = remoteStream;
     }
   }, [remoteStream]);
+
+  // Duo sync: receive peer frame
+  useEffect(() => {
+    if (peerCapturedFrame) {
+      setPeerDuoBlobs((prev) => ({ ...prev, [peerCapturedFrame.slot]: peerCapturedFrame.blob }));
+    }
+  }, [peerCapturedFrame]);
+
+  // Duo sync: trigger synchronized capture
+  useEffect(() => {
+    if (!isDuo || !syncTrigger) return;
+    const { slot, at } = syncTrigger;
+    setIsSessionActive(true);
+    setCurrentSlotIndex(slot);
+    setIsPosingPause(false);
+
+    const now = Date.now();
+    const remainingMs = Math.max(0, at - now);
+
+    setLocalCountdown(3);
+    const t2 = setTimeout(() => setLocalCountdown(2), Math.max(100, remainingMs - 2000));
+    const t1 = setTimeout(() => setLocalCountdown(1), Math.max(200, remainingMs - 1000));
+    const tSnap = setTimeout(async () => {
+      setLocalCountdown(null);
+      triggerFlash();
+      if (localVideoRef.current) {
+        try {
+          const blob = await captureFrame(localVideoRef.current);
+          setLocalDuoBlobs((prev) => ({ ...prev, [slot]: blob }));
+          onSendCapturedDuoFrame?.(slot, blob);
+        } catch (e) {
+          console.error('Capture frame error in duo', e);
+        }
+      }
+    }, remainingMs);
+
+    return () => {
+      clearTimeout(t2);
+      clearTimeout(t1);
+      clearTimeout(tSnap);
+    };
+  }, [syncTrigger, isDuo, onSendCapturedDuoFrame]);
+
+  // Duo sync: assemble completed pairs
+  useEffect(() => {
+    if (!isDuo) return;
+    const slot = currentSlotIndex;
+    const localBlob = localDuoBlobs[slot];
+    const peerBlob = peerDuoBlobs[slot];
+
+    if (localBlob && peerBlob && !completedDuoSlots[slot]) {
+      const item = isHost
+        ? { personA: localBlob, personB: peerBlob }
+        : { personA: peerBlob, personB: localBlob };
+
+      const nextCompleted = { ...completedDuoSlots, [slot]: item };
+      setCompletedDuoSlots(nextCompleted);
+
+      const count = Object.keys(nextCompleted).length;
+      if (count >= 4) {
+        const ordered = [nextCompleted[0], nextCompleted[1], nextCompleted[2], nextCompleted[3]];
+        setTimeout(() => {
+          onSessionComplete(ordered);
+        }, 1000);
+      } else if (isHost) {
+        setIsPosingPause(true);
+        setTimeout(() => {
+          onStartDuoNextSlot?.(slot + 1);
+        }, 2500);
+      }
+    }
+  }, [localDuoBlobs, peerDuoBlobs, currentSlotIndex, isDuo, isHost, completedDuoSlots, onSessionComplete, onStartDuoNextSlot]);
 
   // Session 5:00 timer
   useEffect(() => {
@@ -424,19 +512,39 @@ export const BoothPage: React.FC<BoothPageProps> = ({
             {t.booth.photoIndex.replace('{current}', String(Math.min(currentSlotIndex + 1, 4))).replace('{total}', '4')}
           </span>
           <div style={{ display: 'flex', gap: '6px' }}>
-            {[0, 1, 2, 3].map((idx) => (
-              <div
-                key={idx}
-                style={{
-                  width: '28px',
-                  height: '8px',
-                  borderRadius: '9999px',
-                  backgroundColor: idx < capturedBlobs.length ? '#15803D' : (idx === currentSlotIndex && isSessionActive ? '#F2789F' : '#E5E7EB'),
-                }}
-              />
-            ))}
+            {[0, 1, 2, 3].map((idx) => {
+              const isFilled = isDuo
+                ? !!completedDuoSlots[idx]
+                : idx < capturedBlobs.length;
+              return (
+                <div
+                  key={idx}
+                  style={{
+                    width: '28px',
+                    height: '8px',
+                    borderRadius: '9999px',
+                    backgroundColor: isFilled ? '#15803D' : (idx === currentSlotIndex && isSessionActive ? '#F2789F' : '#E5E7EB'),
+                  }}
+                />
+              );
+            })}
           </div>
         </div>
+
+        {isDuo && isSessionActive && localDuoBlobs[currentSlotIndex] && !peerDuoBlobs[currentSlotIndex] && (
+          <div style={{
+            padding: '8px',
+            backgroundColor: '#FEF3C7',
+            borderRadius: '12px',
+            color: '#B45309',
+            fontSize: '12px',
+            fontWeight: 700,
+            textAlign: 'center',
+            marginBottom: '10px',
+          }}>
+            ⏳ Menunggu foto teman...
+          </div>
+        )}
 
         {!isSessionActive && (
           <CtaButton

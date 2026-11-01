@@ -145,10 +145,11 @@ wss.on('connection', (ws) => {
           break;
         }
 
-        // Relay WebRTC signaling: offer, answer, ice-candidate
+        // Relay WebRTC signaling: offer, answer, ice-candidate, and generic relay fallback
         case 'offer':
         case 'answer':
-        case 'ice': {
+        case 'ice':
+        case 'relay': {
           if (!currentRoomCode) return;
           const room = rooms.get(currentRoomCode);
           if (!room) return;

@@ -60,12 +60,24 @@ export class SignalingClient {
     });
   }
 
-  public setLocalStream(stream: MediaStream) {
+  public async setLocalStream(stream: MediaStream) {
     this.localStream = stream;
     if (this.pc) {
+      const senders = this.pc.getSenders();
       stream.getTracks().forEach((track) => {
-        this.pc?.addTrack(track, stream);
+        if (!senders.some((s) => s.track === track)) {
+          this.pc?.addTrack(track, stream);
+        }
       });
+      if (this.role === 'host' && this.pc.signalingState === 'stable') {
+        try {
+          const offer = await this.pc.createOffer();
+          await this.pc.setLocalDescription(offer);
+          this.sendWs({ type: 'offer', offer });
+        } catch (e) {
+          console.error('Error renegotiating offer:', e);
+        }
+      }
     }
   }
 
@@ -260,6 +272,41 @@ export class SignalingClient {
         this.events.onError?.(msg.code, msg.message);
         break;
 
+      case 'relay': {
+        const payload = msg.payload;
+        if (!payload) return;
+        if (payload.type === 'trigger-capture') {
+          this.events.onSyncCaptureTrigger?.(payload.slot, payload.at);
+        } else if (payload.type === 'edit') {
+          this.events.onPeerEditReceived?.(payload.state);
+        } else if (payload.type === 'photo-data') {
+          try {
+            const binaryStr = atob(payload.base64);
+            const bytes = new Uint8Array(binaryStr.length);
+            for (let i = 0; i < binaryStr.length; i++) {
+              bytes[i] = binaryStr.charCodeAt(i);
+            }
+            const blob = new Blob([bytes], { type: 'image/jpeg' });
+            this.events.onPeerPhotoReceived?.(payload.slot, blob);
+          } catch (e) {
+            console.error('Relay photo decode error', e);
+          }
+        } else if (payload.type === 'final-strip-data') {
+          try {
+            const binaryStr = atob(payload.base64);
+            const bytes = new Uint8Array(binaryStr.length);
+            for (let i = 0; i < binaryStr.length; i++) {
+              bytes[i] = binaryStr.charCodeAt(i);
+            }
+            const blob = new Blob([bytes], { type: 'image/png' });
+            this.events.onFinalStripReceived?.(blob);
+          } catch (e) {
+            console.error('Relay final strip decode error', e);
+          }
+        }
+        break;
+      }
+
       default:
         break;
     }
@@ -280,44 +327,68 @@ export class SignalingClient {
   // Synchronized photo capture: host triggers capture at target server timestamp
   public triggerSyncCapture(slot: number) {
     const targetAt = Date.now() - this.clockOffset + 3000;
-    const msg = JSON.stringify({ type: 'trigger-capture', slot, at: targetAt });
+    const payload = { type: 'trigger-capture', slot, at: targetAt };
     if (this.captureChannel && this.captureChannel.readyState === 'open') {
-      this.captureChannel.send(msg);
+      this.captureChannel.send(JSON.stringify(payload));
     }
+    this.sendWs({ type: 'relay', payload });
     // Also trigger locally on host
     this.events.onSyncCaptureTrigger?.(slot, targetAt);
   }
 
-  // Send photo chunks (16 KB)
+  // Send photo chunks (16 KB) with WS fallback
   public async sendPhotoBlob(slot: number, blob: Blob) {
-    if (!this.captureChannel || this.captureChannel.readyState !== 'open') return;
+    if (this.captureChannel && this.captureChannel.readyState === 'open') {
+      const buffer = await blob.arrayBuffer();
+      this.captureChannel.send(JSON.stringify({ type: 'photo-start', slot, size: buffer.byteLength }));
 
-    const buffer = await blob.arrayBuffer();
-    this.captureChannel.send(JSON.stringify({ type: 'photo-start', slot, size: buffer.byteLength }));
+      const chunkSize = 16384; // 16 KB chunks
+      for (let offset = 0; offset < buffer.byteLength; offset += chunkSize) {
+        const slice = buffer.slice(offset, offset + chunkSize);
+        this.captureChannel.send(slice);
+      }
 
-    const chunkSize = 16384; // 16 KB chunks
-    for (let offset = 0; offset < buffer.byteLength; offset += chunkSize) {
-      const slice = buffer.slice(offset, offset + chunkSize);
-      this.captureChannel.send(slice);
+      this.captureChannel.send(JSON.stringify({ type: 'photo-end', slot }));
+    } else {
+      // WS fallback
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const dataUrl = reader.result as string;
+        const base64 = dataUrl.split(',')[1];
+        this.sendWs({
+          type: 'relay',
+          payload: { type: 'photo-data', slot, base64 },
+        });
+      };
+      reader.readAsDataURL(blob);
     }
-
-    this.captureChannel.send(JSON.stringify({ type: 'photo-end', slot }));
   }
 
   // Send final rendered strip PNG from host to guest
   public async sendFinalStrip(blob: Blob) {
-    if (!this.captureChannel || this.captureChannel.readyState !== 'open') return;
+    if (this.captureChannel && this.captureChannel.readyState === 'open') {
+      const buffer = await blob.arrayBuffer();
+      this.captureChannel.send(JSON.stringify({ type: 'final-strip-start', size: buffer.byteLength }));
 
-    const buffer = await blob.arrayBuffer();
-    this.captureChannel.send(JSON.stringify({ type: 'final-strip-start', size: buffer.byteLength }));
+      const chunkSize = 16384;
+      for (let offset = 0; offset < buffer.byteLength; offset += chunkSize) {
+        const slice = buffer.slice(offset, offset + chunkSize);
+        this.captureChannel.send(slice);
+      }
 
-    const chunkSize = 16384;
-    for (let offset = 0; offset < buffer.byteLength; offset += chunkSize) {
-      const slice = buffer.slice(offset, offset + chunkSize);
-      this.captureChannel.send(slice);
+      this.captureChannel.send(JSON.stringify({ type: 'final-strip-end' }));
+    } else {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const dataUrl = reader.result as string;
+        const base64 = dataUrl.split(',')[1];
+        this.sendWs({
+          type: 'relay',
+          payload: { type: 'final-strip-data', base64 },
+        });
+      };
+      reader.readAsDataURL(blob);
     }
-
-    this.captureChannel.send(JSON.stringify({ type: 'final-strip-end' }));
   }
 
   // Broadcast collaborative edit state
@@ -325,6 +396,7 @@ export class SignalingClient {
     if (this.editChannel && this.editChannel.readyState === 'open') {
       this.editChannel.send(JSON.stringify({ type: 'edit', state }));
     }
+    this.sendWs({ type: 'relay', payload: { type: 'edit', state } });
   }
 
   public closeRoom() {

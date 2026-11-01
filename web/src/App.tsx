@@ -37,6 +37,9 @@ function MainApp() {
   const [joinError, setJoinError] = useState<string | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [sessionEndsAt, setSessionEndsAt] = useState<number | null>(null);
+  const [syncTrigger, setSyncTrigger] = useState<{ slot: number; at: number } | null>(null);
+  const [peerCapturedFrame, setPeerCapturedFrame] = useState<{ slot: number; blob: Blob } | null>(null);
+  const [sharedEditState, setSharedEditState] = useState<any>(undefined);
 
   // Tips Modal state
   const [tipsMoment, setTipsMoment] = useState<'waiting' | 'booth' | 'result' | null>(null);
@@ -91,6 +94,32 @@ function MainApp() {
           setActiveTemplateId(templateId);
           setActiveLayout(layout);
         },
+        onSyncCaptureTrigger: (slot, at) => {
+          setSyncTrigger({ slot, at });
+        },
+        onPeerPhotoReceived: (slot, blob) => {
+          setPeerCapturedFrame({ slot, blob });
+        },
+        onPeerEditReceived: (state) => {
+          setSharedEditState(state);
+        },
+        onFinalStripReceived: async (blob) => {
+          try {
+            const thumbBlob = await createThumbnail(blob, 360);
+            await saveStrip({
+              pngBlob: blob,
+              thumbBlob,
+              templateId: activeTemplateId,
+              layout: activeLayout,
+            });
+            refreshCollectionCount();
+          } catch (e) {
+            console.error('Error saving received final strip', e);
+          }
+          setFinalPngBlob(blob);
+          setCurrentView('result');
+          setTipsMoment('result');
+        },
         onRoomClosed: () => {
           alert('Ruangan ditutup.');
           resetToHome();
@@ -116,6 +145,9 @@ function MainApp() {
     setFinalPngBlob(null);
     setRemoteStream(null);
     setSessionEndsAt(null);
+    setSyncTrigger(null);
+    setPeerCapturedFrame(null);
+    setSharedEditState(undefined);
     setJoinError(null);
     setCurrentView('home');
     refreshCollectionCount();
@@ -186,6 +218,9 @@ function MainApp() {
     } catch (err) {
       console.error('Failed to save strip to IndexedDB:', err);
     }
+    if (isDuo && isHost && signalingRef.current) {
+      signalingRef.current.sendFinalStrip(pngBlob);
+    }
     setCurrentView('result');
     setTipsMoment('result');
   };
@@ -234,6 +269,20 @@ function MainApp() {
           sessionEndsAt={sessionEndsAt}
           onSessionComplete={handleSessionComplete}
           onExitBooth={resetToHome}
+          onLocalStreamReady={(stream) => {
+            signalingRef.current?.setLocalStream(stream);
+          }}
+          onStartDuoSession={() => {
+            signalingRef.current?.triggerSyncCapture(0);
+          }}
+          syncTrigger={syncTrigger}
+          onSendCapturedDuoFrame={(slot, blob) => {
+            signalingRef.current?.sendPhotoBlob(slot, blob);
+          }}
+          peerCapturedFrame={peerCapturedFrame}
+          onStartDuoNextSlot={(slot) => {
+            signalingRef.current?.triggerSyncCapture(slot);
+          }}
         />
       )}
 
@@ -251,6 +300,10 @@ function MainApp() {
           onRetakeAll={() => {
             setCapturedPhotos([]);
             setCurrentView('booth');
+          }}
+          sharedEditState={sharedEditState}
+          onBroadcastEditState={(state) => {
+            signalingRef.current?.broadcastEdit(state);
           }}
         />
       )}

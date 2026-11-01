@@ -75,6 +75,26 @@ async function runTests() {
   const relayedOffer = await waitMessage(guest, m => m.type === 'offer');
   console.log(`✓ WebRTC offer relayed successfully.`);
 
+  // Test 7: Synchronized capture trigger relay
+  host.send(JSON.stringify({ type: 'relay', payload: { type: 'trigger-capture', slot: 0, at: Date.now() + 3000 } }));
+  const relayedTrigger = await waitMessage(guest, m => m.type === 'relay' && m.payload?.type === 'trigger-capture');
+  console.log(`✓ Synchronized capture trigger relayed to guest for slot: ${relayedTrigger.payload.slot}`);
+
+  // Test 8: Photo frame relay
+  guest.send(JSON.stringify({ type: 'relay', payload: { type: 'photo-data', slot: 0, base64: 'ZHVtbXktYmluYXJ5' } }));
+  const relayedPhoto = await waitMessage(host, m => m.type === 'relay' && m.payload?.type === 'photo-data');
+  console.log(`✓ Captured photo frame relayed to host for slot: ${relayedPhoto.payload.slot}`);
+
+  // Test 9: Collaborative edit state relay
+  guest.send(JSON.stringify({ type: 'relay', payload: { type: 'edit', state: { filterId: 'vintage', stickers: [] } } }));
+  const relayedEdit = await waitMessage(host, m => m.type === 'relay' && m.payload?.type === 'edit');
+  console.log(`✓ Collaborative edit state relayed: filter = ${relayedEdit.payload.state.filterId}`);
+
+  // Test 10: Final strip PNG relay from host to guest
+  host.send(JSON.stringify({ type: 'relay', payload: { type: 'final-strip-data', base64: 'ZmluYWwtcG5nLWRhdGE=' } }));
+  const relayedFinal = await waitMessage(guest, m => m.type === 'relay' && m.payload?.type === 'final-strip-data');
+  console.log(`✓ Final rendered strip PNG relayed to guest successfully.`);
+
   host.close();
   guest.close();
 
